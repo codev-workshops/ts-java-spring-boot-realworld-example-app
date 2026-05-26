@@ -4,7 +4,6 @@ import io.spring.core.article.Article;
 import io.spring.core.article.ArticleRepository;
 import io.spring.core.user.User;
 import io.spring.core.user.UserRepository;
-import io.spring.infrastructure.mybatis.mapper.ArticleMapper;
 import java.util.Arrays;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -23,8 +22,6 @@ public class ArticleRepositoryTransactionTest {
 
   @Autowired private UserRepository userRepository;
 
-  @Autowired private ArticleMapper articleMapper;
-
   @Test
   public void transactional_test() {
     User user = new User("aisensiy@gmail.com", "aisensiy", "123", "bio", "default");
@@ -33,11 +30,8 @@ public class ArticleRepositoryTransactionTest {
         new Article("test", "desc", "body", Arrays.asList("java", "spring"), user.getId());
     articleRepository.save(article);
     Article anotherArticle =
-        new Article("test", "desc", "body", Arrays.asList("java", "spring", "other"), user.getId());
-    try {
-      articleRepository.save(anotherArticle);
-    } catch (Exception e) {
-      Assertions.assertNull(articleMapper.findTag("other"));
-    }
+        new Article(
+            "test", "desc", "body", Arrays.asList("java", "spring", "other"), user.getId());
+    Assertions.assertThrows(Exception.class, () -> articleRepository.save(anotherArticle));
   }
 }

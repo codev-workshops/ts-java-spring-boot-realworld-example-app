@@ -40,7 +40,7 @@ The secret key is stored in `application.properties`.
 
 # Database
 
-It uses a ~~H2 in-memory database~~ sqlite database (for easy local test without losing test data after every restart), can be changed easily in the `application.properties` for any other database.
+It uses a PostgreSQL database, which can be started via Docker Compose (see below). Configuration can be changed in `application.properties`.
 
 ## Sample Data & Login Credentials
 
@@ -64,11 +64,12 @@ The application includes seed data with sample users, articles, tags, comments, 
 
 ## Backend (Spring Boot)
 
-You'll need Java 11 installed.
+You'll need Java 11 and Docker installed.
 
+Start the PostgreSQL database, then run the app:
+
+    docker compose up -d
     ./gradlew bootRun
-
-**Note**: `bootRun` automatically cleans and recreates the database with seed data on each run to avoid Flyway migration conflicts during development.
 
 To test that it works, open a browser tab at http://localhost:8080/tags .  
 Alternatively, you can run

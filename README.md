@@ -40,7 +40,17 @@ The secret key is stored in `application.properties`.
 
 # Database
 
-It uses a ~~H2 in-memory database~~ sqlite database (for easy local test without losing test data after every restart), can be changed easily in the `application.properties` for any other database.
+It uses PostgreSQL as the database. You'll need to install PostgreSQL and create the `realworld` database before starting the app:
+
+```bash
+# Install PostgreSQL (Ubuntu/Debian)
+sudo apt-get install -y postgresql
+
+# Create the database
+sudo -u postgres createdb realworld
+```
+
+The database connection can be configured in `application.properties` or overridden via environment variables (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`).
 
 ## Sample Data & Login Credentials
 
@@ -68,7 +78,7 @@ You'll need Java 11 installed.
 
     ./gradlew bootRun
 
-**Note**: `bootRun` automatically cleans and recreates the database with seed data on each run to avoid Flyway migration conflicts during development.
+**Note**: Make sure the PostgreSQL `realworld` database exists and is accessible before running the app. Flyway will automatically run migrations on startup.
 
 To test that it works, open a browser tab at http://localhost:8080/tags .  
 Alternatively, you can run

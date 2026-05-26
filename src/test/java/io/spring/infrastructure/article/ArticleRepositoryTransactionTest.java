@@ -12,10 +12,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 
 @ActiveProfiles("test")
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Sql(
+    executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD,
+    statements = {
+      "DELETE FROM article_tags",
+      "DELETE FROM article_favorites",
+      "DELETE FROM comments",
+      "DELETE FROM articles",
+      "DELETE FROM tags",
+      "DELETE FROM follows",
+      "DELETE FROM users"
+    })
 public class ArticleRepositoryTransactionTest {
   @Autowired private ArticleRepository articleRepository;
 

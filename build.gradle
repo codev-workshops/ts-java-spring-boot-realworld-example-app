@@ -25,6 +25,11 @@ jacoco {
     toolVersion = "0.8.7"
 }
 
+def jacocoExcludes = [
+    'io/spring/graphql/types/**',
+    'io/spring/graphql/DgsConstants*'
+]
+
 jacocoTestReport {
     dependsOn test
     reports {
@@ -32,14 +37,24 @@ jacocoTestReport {
         html.required = true
         csv.required = false
     }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
     finalizedBy jacocoTestCoverageVerification
 }
 
 jacocoTestCoverageVerification {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
     violationRules {
         rule {
             limit {
-                minimum = 0.80
+                minimum = 0.90
             }
         }
     }

@@ -31,4 +31,4 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
     - name: Test with Gradle
-      run: ./gradlew clean test -x jacocoTestCoverageVerification
+      run: ./gradlew clean test

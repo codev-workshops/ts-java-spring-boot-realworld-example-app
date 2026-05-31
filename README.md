@@ -64,7 +64,7 @@ The application includes seed data with sample users, articles, tags, comments, 
 
 ## Backend (Spring Boot)
 
-You'll need Java 11 installed.
+You'll need **Java 11** (LTS) installed. The project uses Gradle toolchains and will auto-provision JDK 11 if not found locally (requires internet access). Recommended distribution: [Eclipse Temurin](https://adoptium.net/).
 
     ./gradlew bootRun
 

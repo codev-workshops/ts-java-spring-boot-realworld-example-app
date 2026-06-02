@@ -227,4 +227,133 @@ public class ArticleQueryServiceTest extends DbTestBase {
     ArticleData articleData = anotherUserFeed.getArticleDatas().get(0);
     Assertions.assertTrue(articleData.getProfileData().isFollowing());
   }
+
+  @Test
+  public void should_return_empty_when_article_id_not_found() {
+    Optional<ArticleData> optional = queryService.findById("non-existent-id", user);
+    Assertions.assertFalse(optional.isPresent());
+  }
+
+  @Test
+  public void should_find_article_by_id_without_user() {
+    Optional<ArticleData> optional = queryService.findById(article.getId(), null);
+    Assertions.assertTrue(optional.isPresent());
+    Assertions.assertFalse(optional.get().isFavorited());
+  }
+
+  @Test
+  public void should_find_article_by_slug() {
+    Optional<ArticleData> optional = queryService.findBySlug(article.getSlug(), user);
+    Assertions.assertTrue(optional.isPresent());
+    Assertions.assertEquals(optional.get().getId(), article.getId());
+  }
+
+  @Test
+  public void should_return_empty_when_slug_not_found() {
+    Optional<ArticleData> optional = queryService.findBySlug("non-existent-slug", user);
+    Assertions.assertFalse(optional.isPresent());
+  }
+
+  @Test
+  public void should_find_article_by_slug_without_user() {
+    Optional<ArticleData> optional = queryService.findBySlug(article.getSlug(), null);
+    Assertions.assertTrue(optional.isPresent());
+    Assertions.assertFalse(optional.get().isFavorited());
+  }
+
+  @Test
+  public void should_get_empty_feed_with_cursor_when_no_follows() {
+    CursorPager<ArticleData> feed =
+        queryService.findUserFeedWithCursor(
+            user, new CursorPageParameter<>(null, 20, Direction.NEXT));
+    Assertions.assertEquals(feed.getData().size(), 0);
+    Assertions.assertFalse(feed.hasNext());
+  }
+
+  @Test
+  public void should_get_user_feed_with_cursor() {
+    User anotherUser = new User("other@email.com", "other", "123", "", "");
+    userRepository.save(anotherUser);
+    FollowRelation followRelation = new FollowRelation(anotherUser.getId(), user.getId());
+    userRepository.saveRelation(followRelation);
+
+    CursorPager<ArticleData> feed =
+        queryService.findUserFeedWithCursor(
+            anotherUser, new CursorPageParameter<>(null, 20, Direction.NEXT));
+    Assertions.assertEquals(feed.getData().size(), 1);
+    Assertions.assertEquals(feed.getData().get(0).getId(), article.getId());
+  }
+
+  @Test
+  public void should_get_user_feed_with_cursor_prev_direction() {
+    User anotherUser = new User("other@email.com", "other", "123", "", "");
+    userRepository.save(anotherUser);
+    FollowRelation followRelation = new FollowRelation(anotherUser.getId(), user.getId());
+    userRepository.saveRelation(followRelation);
+
+    CursorPager<ArticleData> feed =
+        queryService.findUserFeedWithCursor(
+            anotherUser, new CursorPageParameter<>(null, 20, Direction.PREV));
+    Assertions.assertEquals(feed.getData().size(), 1);
+  }
+
+  @Test
+  public void should_get_user_feed_with_cursor_has_extra() {
+    User anotherUser = new User("other@email.com", "other", "123", "", "");
+    userRepository.save(anotherUser);
+    FollowRelation followRelation = new FollowRelation(anotherUser.getId(), user.getId());
+    userRepository.saveRelation(followRelation);
+
+    Article a1 =
+        new Article(
+            "a1", "desc", "body", Arrays.asList("t1"), user.getId(),
+            new DateTime().plusHours(3));
+    articleRepository.save(a1);
+    Article a2 =
+        new Article(
+            "a2", "desc", "body", Arrays.asList("t2"), user.getId(),
+            new DateTime().plusHours(2));
+    articleRepository.save(a2);
+    Article a3 =
+        new Article(
+            "a3", "desc", "body", Arrays.asList("t3"), user.getId(),
+            new DateTime().plusHours(1));
+    articleRepository.save(a3);
+
+    CursorPager<ArticleData> feed =
+        queryService.findUserFeedWithCursor(
+            anotherUser, new CursorPageParameter<>(null, 2, Direction.NEXT));
+    Assertions.assertEquals(2, feed.getData().size());
+    Assertions.assertTrue(feed.hasNext());
+  }
+
+  @Test
+  public void should_get_recent_articles_with_cursor_has_extra() {
+    Article secondArticle =
+        new Article("second", "desc", "body", Arrays.asList("test"), user.getId(), new DateTime().minusHours(1));
+    articleRepository.save(secondArticle);
+
+    CursorPager<ArticleData> articles =
+        queryService.findRecentArticlesWithCursor(
+            null, null, null, new CursorPageParameter<>(null, 1, Direction.NEXT), user);
+    Assertions.assertEquals(articles.getData().size(), 1);
+    Assertions.assertTrue(articles.hasNext());
+  }
+
+  @Test
+  public void should_get_recent_articles_without_user() {
+    ArticleDataList recentArticles =
+        queryService.findRecentArticles(null, null, null, new Page(), null);
+    Assertions.assertEquals(recentArticles.getCount(), 1);
+    Assertions.assertFalse(recentArticles.getArticleDatas().get(0).isFavorited());
+  }
+
+  @Test
+  public void should_get_recent_articles_with_cursor_without_user() {
+    CursorPager<ArticleData> articles =
+        queryService.findRecentArticlesWithCursor(
+            null, null, null, new CursorPageParameter<>(null, 20, Direction.NEXT), null);
+    Assertions.assertEquals(articles.getData().size(), 1);
+    Assertions.assertFalse(articles.getData().get(0).isFavorited());
+  }
 }

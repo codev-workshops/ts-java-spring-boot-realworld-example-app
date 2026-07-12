@@ -212,6 +212,54 @@ public class ArticleQueryServiceTest extends DbTestBase {
   }
 
   @Test
+  public void should_fetch_article_by_slug() {
+    Optional<ArticleData> optional = queryService.findBySlug(article.getSlug(), user);
+    Assertions.assertTrue(optional.isPresent());
+    Assertions.assertEquals(optional.get().getId(), article.getId());
+  }
+
+  @Test
+  public void should_fetch_article_by_slug_without_user() {
+    Optional<ArticleData> optional = queryService.findBySlug(article.getSlug(), null);
+    Assertions.assertTrue(optional.isPresent());
+    Assertions.assertEquals(optional.get().getId(), article.getId());
+  }
+
+  @Test
+  public void should_return_empty_when_article_not_found() {
+    Assertions.assertFalse(queryService.findById("not-exist", user).isPresent());
+    Assertions.assertFalse(queryService.findBySlug("not-exist", user).isPresent());
+  }
+
+  @Test
+  public void should_fetch_article_without_user() {
+    Optional<ArticleData> optional = queryService.findById(article.getId(), null);
+    Assertions.assertTrue(optional.isPresent());
+  }
+
+  @Test
+  public void should_get_user_feed_with_cursor() {
+    User anotherUser = new User("other@email.com", "other", "123", "", "");
+    userRepository.save(anotherUser);
+    userRepository.saveRelation(new FollowRelation(anotherUser.getId(), user.getId()));
+
+    CursorPager<ArticleData> emptyFeed =
+        queryService.findUserFeedWithCursor(
+            user, new CursorPageParameter<>(null, 20, Direction.NEXT));
+    Assertions.assertEquals(emptyFeed.getData().size(), 0);
+
+    CursorPager<ArticleData> feed =
+        queryService.findUserFeedWithCursor(
+            anotherUser, new CursorPageParameter<>(null, 20, Direction.NEXT));
+    Assertions.assertEquals(feed.getData().size(), 1);
+
+    CursorPager<ArticleData> prevFeed =
+        queryService.findUserFeedWithCursor(
+            anotherUser, new CursorPageParameter<>(null, 20, Direction.PREV));
+    Assertions.assertEquals(prevFeed.getData().size(), 1);
+  }
+
+  @Test
   public void should_get_user_feed() {
     User anotherUser = new User("other@email.com", "other", "123", "", "");
     userRepository.save(anotherUser);

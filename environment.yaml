@@ -1,0 +1,100 @@
+# Environment configuration for ts-java-spring-boot-realworld-example-app
+#
+# Captures the exact, verified steps to set up, build, test, and run this
+# project (Spring Boot / Gradle backend + Next.js frontend). Verified on
+# Ubuntu 22.04 with OpenJDK 11 and Node 16.
+#
+# Pinned versions:
+#   - Java 11  (repo pins Java 11 in .java-version; build.gradle sets
+#     sourceCompatibility/targetCompatibility = 11)
+#   - Node 16  (frontend/.nvmrc = 16; frontend/package.json engines: node >=14 <=16.x)
+
+name: realworld-spring-boot
+description: >-
+  RealWorld "Conduit" example: Spring Boot (Java 11 / Gradle) backend on port
+  8080 and a Next.js (Node 16) frontend on port 3000. The frontend hardcodes
+  SERVER_BASE_URL = http://localhost:8080 in frontend/lib/utils/constant.ts.
+
+versions:
+  java: "11"     # /usr/lib/jvm/java-11-openjdk-amd64
+  node: "16"     # nvm install 16 -> v16.20.2
+
+phases:
+
+  # 1. Install language runtimes and toolchains.
+  setup:
+    - name: Install Java 11 (JDK)
+      run: sudo apt-get update -qq && sudo apt-get install -y openjdk-11-jdk
+    - name: Set JAVA_HOME to Java 11
+      # Prepend to PATH so ./gradlew uses Java 11 (repo targets Java 11).
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        export PATH="$JAVA_HOME/bin:$PATH"
+        java -version   # expect openjdk version "11.0.x"
+    - name: Make the Gradle wrapper executable and verify
+      run: |
+        cd "$REPO_ROOT"
+        chmod +x gradlew
+        ./gradlew --version   # Gradle 7.4, JVM 11
+    - name: Install Node.js 16 via nvm
+      # frontend/.nvmrc pins 16; engines require node >=14 <=16.x
+      run: |
+        export NVM_DIR="$HOME/.nvm"
+        . "$NVM_DIR/nvm.sh"
+        nvm install 16
+        nvm use 16
+        node -v   # expect v16.x
+    - name: Install frontend dependencies
+      run: |
+        export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 16
+        cd "$REPO_ROOT/frontend"
+        npm install
+
+  # 2. Build both backend and frontend.
+  build:
+    - name: Build the backend
+      # Skip jacocoTestCoverageVerification: build.gradle enforces an 80%
+      # minimum which is not required for a working build (CI also skips it).
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        export PATH="$JAVA_HOME/bin:$PATH"
+        cd "$REPO_ROOT"
+        ./gradlew clean build -x jacocoTestCoverageVerification
+    - name: Build the frontend (optional verification)
+      # Builds cleanly on Node 16 without NODE_OPTIONS=--openssl-legacy-provider.
+      run: |
+        export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 16
+        cd "$REPO_ROOT/frontend"
+        npm run build
+
+  # 3. Run the JUnit test suite exactly as CI does.
+  test:
+    - name: Run backend tests
+      # Matches .github/workflows/gradle.yml. The `test` task already excludes
+      # Selenium E2E tests (io/spring/selenium/**). SQLite dev.db is auto-reset
+      # by the clean/bootRun tasks.
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        export PATH="$JAVA_HOME/bin:$PATH"
+        cd "$REPO_ROOT"
+        ./gradlew clean test -x jacocoTestCoverageVerification
+
+  # 4. Run both services (long-running; start each in its own shell).
+  run:
+    - name: Start the backend (port 8080)
+      run: |
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        export PATH="$JAVA_HOME/bin:$PATH"
+        cd "$REPO_ROOT"
+        ./gradlew bootRun
+      # Verify: curl http://localhost:8080/tags  -> returns JSON tag list
+    - name: Start the frontend (port 3000)
+      # On Node 16 `next dev` starts without NODE_OPTIONS=--openssl-legacy-provider.
+      # If an OpenSSL error occurs (e.g. on newer Node), prefix with
+      # NODE_OPTIONS=--openssl-legacy-provider.
+      run: |
+        export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 16
+        cd "$REPO_ROOT/frontend"
+        npm run dev
+      # Verify: open http://localhost:3000 -> home page loads articles and
+      # Popular Tags fetched from the backend at http://localhost:8080.

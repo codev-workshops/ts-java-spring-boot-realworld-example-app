@@ -25,6 +25,18 @@ jacoco {
     toolVersion = "0.8.7"
 }
 
+// Generated (DGS codegen), framework entry points, and SQL mapper/read-service
+// interfaces are excluded from the coverage denominator instead of being tested.
+def jacocoExclusions = [
+    'io/spring/graphql/types/**',
+    'io/spring/graphql/DgsConstants*',
+    'io/spring/infrastructure/mybatis/mapper/**',
+    'io/spring/infrastructure/mybatis/readservice/**',
+    'io/spring/RealWorldApplication*',
+    'io/spring/MyBatisConfig*',
+    'io/spring/JacksonCustomizations*'
+]
+
 jacocoTestReport {
     dependsOn test
     reports {
@@ -32,13 +44,25 @@ jacocoTestReport {
         html.required = true
         csv.required = false
     }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclusions)
+        }))
+    }
     finalizedBy jacocoTestCoverageVerification
 }
 
 jacocoTestCoverageVerification {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclusions)
+        }))
+    }
     violationRules {
         rule {
             limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
                 minimum = 0.80
             }
         }

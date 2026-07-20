@@ -38,7 +38,27 @@ jacocoTestReport {
 jacocoTestCoverageVerification {
     violationRules {
         rule {
+            element = 'CLASS'
+            includes = [
+                'io.spring.application.ArticleQueryService',
+                'io.spring.application.CommentQueryService',
+                'io.spring.application.ProfileQueryService',
+                'io.spring.application.TagsQueryService',
+                'io.spring.application.UserQueryService',
+                'io.spring.application.user.UserService',
+                'io.spring.application.user.DuplicatedEmailValidator',
+                'io.spring.application.user.DuplicatedUsernameValidator',
+                'io.spring.application.user.UpdateUserValidator',
+                'io.spring.core.service.AuthorizationService'
+            ]
             limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
                 minimum = 0.80
             }
         }

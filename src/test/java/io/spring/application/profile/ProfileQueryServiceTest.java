@@ -2,6 +2,7 @@ package io.spring.application.profile;
 
 import io.spring.application.ProfileQueryService;
 import io.spring.application.data.ProfileData;
+import io.spring.core.user.FollowRelation;
 import io.spring.core.user.User;
 import io.spring.core.user.UserRepository;
 import io.spring.infrastructure.DbTestBase;
@@ -26,5 +27,37 @@ public class ProfileQueryServiceTest extends DbTestBase {
     Optional<ProfileData> optional =
         profileQueryService.findByUsername(profileUser.getUsername(), currentUser);
     Assertions.assertTrue(optional.isPresent());
+  }
+
+  @Test
+  public void should_return_empty_when_profile_not_found() {
+    User currentUser = new User("a@test.com", "a", "123", "", "");
+    Optional<ProfileData> optional = profileQueryService.findByUsername("not-exists", currentUser);
+    Assertions.assertFalse(optional.isPresent());
+  }
+
+  @Test
+  public void should_fetch_profile_with_null_current_user() {
+    User profileUser = new User("p@test.com", "p", "123", "", "");
+    userRepository.save(profileUser);
+
+    Optional<ProfileData> optional =
+        profileQueryService.findByUsername(profileUser.getUsername(), null);
+    Assertions.assertTrue(optional.isPresent());
+    Assertions.assertFalse(optional.get().isFollowing());
+  }
+
+  @Test
+  public void should_show_following_when_current_user_follows_profile() {
+    User currentUser = new User("a@test.com", "a", "123", "", "");
+    User profileUser = new User("p@test.com", "p", "123", "", "");
+    userRepository.save(currentUser);
+    userRepository.save(profileUser);
+    userRepository.saveRelation(new FollowRelation(currentUser.getId(), profileUser.getId()));
+
+    Optional<ProfileData> optional =
+        profileQueryService.findByUsername(profileUser.getUsername(), currentUser);
+    Assertions.assertTrue(optional.isPresent());
+    Assertions.assertTrue(optional.get().isFollowing());
   }
 }

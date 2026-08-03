@@ -25,24 +25,44 @@ jacoco {
     toolVersion = "0.8.7"
 }
 
+// Generated sources (DGS codegen) and the application entrypoint are excluded from coverage.
+def jacocoExclusions = [
+    'io/spring/graphql/types/**',
+    'io/spring/graphql/DgsConstants*',
+    'io/spring/graphql/client/**',
+    'io/spring/RealWorldApplication*'
+]
+
 jacocoTestReport {
     dependsOn test
     reports {
         xml.required = true
         html.required = true
-        csv.required = false
+        csv.required = true
     }
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: jacocoExclusions)
+    }))
     finalizedBy jacocoTestCoverageVerification
 }
 
 jacocoTestCoverageVerification {
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: jacocoExclusions)
+    }))
     violationRules {
         rule {
             limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
                 minimum = 0.80
             }
         }
     }
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }
 
 repositories {

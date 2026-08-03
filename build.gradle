@@ -25,24 +25,51 @@ jacoco {
     toolVersion = "0.8.7"
 }
 
+def jacocoExclusions = [
+    // DGS generated GraphQL types and constants
+    'io/spring/graphql/types/**',
+    'io/spring/graphql/client/**',
+    'io/spring/graphql/DgsConstants*',
+    // Spring Boot entrypoint
+    'io/spring/RealWorldApplication*',
+    // Selenium E2E suite (requires a browser and a running app server)
+    'io/spring/selenium/**',
+]
+
 jacocoTestReport {
     dependsOn test
     reports {
         xml.required = true
         html.required = true
-        csv.required = false
+        csv.required = true
     }
-    finalizedBy jacocoTestCoverageVerification
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclusions)
+        }))
+    }
 }
 
 jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclusions)
+        }))
+    }
     violationRules {
         rule {
             limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
                 minimum = 0.80
             }
         }
     }
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }
 
 repositories {

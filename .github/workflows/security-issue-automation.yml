@@ -1,0 +1,35 @@
+name: Trigger Devin Security Remediation
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions: {}
+
+jobs:
+  trigger-devin:
+    if: contains(github.event.issue.labels.*.name, 'security')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Devin Automation webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.DEVIN_AUTOMATION_WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.DEVIN_AUTOMATION_WEBHOOK_SECRET }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          jq -n \
+            --arg title "$ISSUE_TITLE" \
+            --arg body "$ISSUE_BODY" \
+            --argjson number "$ISSUE_NUMBER" \
+            --arg url "$ISSUE_URL" \
+            --arg repo "$REPO" \
+            '{issue_title: $title, issue_body: $body, issue_number: $number, issue_url: $url, repository: $repo}' \
+          | curl -sf -X POST "$WEBHOOK_URL" \
+              -H 'Content-Type: application/json' \
+              -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+              -d @-

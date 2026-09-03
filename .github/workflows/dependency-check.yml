@@ -1,0 +1,132 @@
+name: OWASP Dependency Check
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '11'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Generate dependency lockfile
+        run: ./gradlew dependencies --configuration runtimeClasspath > dependencies.txt
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@4.0.0
+        id: depcheck
+        with:
+          project: 'ts-java-spring-boot-realworld'
+          path: '.'
+          format: 'JSON'
+          args: >
+            --failOnCVSS 7
+            --suppression config/owasp-suppressions.xml
+        continue-on-error: true
+
+      - name: Verify scan produced a report
+        if: steps.depcheck.outcome == 'failure'
+        run: |
+          if ! find . -name 'dependency-check-report.json' | grep -q .; then
+            echo "::error::Dependency-Check failed without producing a report (infrastructure error)"
+            exit 1
+          fi
+
+      - name: Parse findings and create issues
+        if: steps.depcheck.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const glob = require('@actions/glob');
+
+            // Find the report file
+            const globber = await glob.create('**/dependency-check-report.json');
+            const files = await globber.glob();
+            if (files.length === 0) {
+              console.log('No report file found');
+              return;
+            }
+
+            const report = JSON.parse(fs.readFileSync(files[0], 'utf8'));
+            const vulnerabilities = [];
+
+            for (const dep of report.dependencies || []) {
+              for (const vuln of dep.vulnerabilities || []) {
+                const score = vuln.cvssv3?.baseScore || vuln.cvssv2?.score || 0;
+                if (score >= 7.0) {
+                  vulnerabilities.push({
+                    name: vuln.name,
+                    severity: vuln.severity,
+                    score: score,
+                    dependency: dep.fileName,
+                    description: (vuln.description || '').substring(0, 500)
+                  });
+                }
+              }
+            }
+
+            // Deduplicate by CVE name
+            const seen = new Set();
+            const unique = vulnerabilities.filter(v => {
+              if (seen.has(v.name)) return false;
+              seen.add(v.name);
+              return true;
+            });
+
+            for (const vuln of unique.slice(0, 5)) {
+              const title = `[Security] ${vuln.name} in ${vuln.dependency} (CVSS ${vuln.score})`;
+
+              // Check if issue already exists
+              const existing = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'security',
+                per_page: 100
+              });
+
+              if (existing.data.some(i => i.title.includes(vuln.name))) {
+                console.log(`Issue already exists for ${vuln.name}`);
+                continue;
+              }
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: `## Vulnerability Details\n\n` +
+                      `- **CVE**: ${vuln.name}\n` +
+                      `- **Severity**: ${vuln.severity} (CVSS ${vuln.score})\n` +
+                      `- **Affected dependency**: \`${vuln.dependency}\`\n\n` +
+                      `## Description\n\n${vuln.description}\n\n` +
+                      `## Remediation\n\nUpgrade the affected dependency to a patched version ` +
+                      `and verify with \`./gradlew clean test spotlessCheck\`.\n\n` +
+                      `---\n*Created automatically by OWASP Dependency Check workflow*`,
+                labels: ['security', 'automated']
+              });
+
+              console.log(`Created issue for ${vuln.name}`);
+            }

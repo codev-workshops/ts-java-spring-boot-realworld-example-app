@@ -18,6 +18,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for public user profiles and follow relationships.
+ *
+ * <p>Handles requests under the base path {@code profiles/{username}}: reading a profile and
+ * following/unfollowing the profile's user.
+ */
 @RestController
 @RequestMapping(path = "profiles/{username}")
 @AllArgsConstructor
@@ -25,6 +31,16 @@ public class ProfileApi {
   private ProfileQueryService profileQueryService;
   private UserRepository userRepository;
 
+  /**
+   * Handles {@code GET /profiles/{username}} and returns a user's public profile.
+   *
+   * @param username the username of the profile to fetch
+   * @param user the currently authenticated user, or {@code null} for anonymous requests; when
+   *     present the {@code following} flag reflects whether this user follows the profile
+   * @return {@code 200 OK} with a body of the form {@code {"profile": ProfileData}}
+   * @throws ResourceNotFoundException if no user with the given username exists (mapped to {@code
+   *     404 Not Found})
+   */
   @GetMapping
   public ResponseEntity getProfile(
       @PathVariable("username") String username, @AuthenticationPrincipal User user) {
@@ -34,6 +50,17 @@ public class ProfileApi {
         .orElseThrow(ResourceNotFoundException::new);
   }
 
+  /**
+   * Handles {@code POST /profiles/{username}/follow} and makes the current user follow the target
+   * user.
+   *
+   * @param username the username of the user to follow
+   * @param user the currently authenticated user who starts following
+   * @return {@code 200 OK} with a body of the form {@code {"profile": ProfileData}} with {@code
+   *     following} set to {@code true}
+   * @throws ResourceNotFoundException if no user with the given username exists (mapped to {@code
+   *     404 Not Found})
+   */
   @PostMapping(path = "follow")
   public ResponseEntity follow(
       @PathVariable("username") String username, @AuthenticationPrincipal User user) {
@@ -48,6 +75,17 @@ public class ProfileApi {
         .orElseThrow(ResourceNotFoundException::new);
   }
 
+  /**
+   * Handles {@code DELETE /profiles/{username}/follow} and makes the current user stop following
+   * the target user.
+   *
+   * @param username the username of the user to unfollow
+   * @param user the currently authenticated user who stops following
+   * @return {@code 200 OK} with a body of the form {@code {"profile": ProfileData}} with {@code
+   *     following} set to {@code false}
+   * @throws ResourceNotFoundException if no user with the given username exists, or the current
+   *     user was not following that user (mapped to {@code 404 Not Found})
+   */
   @DeleteMapping(path = "follow")
   public ResponseEntity unfollow(
       @PathVariable("username") String username, @AuthenticationPrincipal User user) {

@@ -8,12 +8,22 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller exposing the list of all tags used by articles.
+ *
+ * <p>Handles requests under the base path {@code tags}.
+ */
 @RestController
 @RequestMapping(path = "tags")
 @AllArgsConstructor
 public class TagsApi {
   private TagsQueryService tagsQueryService;
 
+  /**
+   * Handles {@code GET /tags} and returns every tag name currently in use.
+   *
+   * @return {@code 200 OK} with a body of the form {@code {"tags": ["tag1", "tag2", ...]}}
+   */
   @GetMapping
   public ResponseEntity getTags() {
     return ResponseEntity.ok(

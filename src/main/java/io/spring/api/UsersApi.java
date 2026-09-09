@@ -27,6 +27,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for user registration and login.
+ *
+ * <p>Has no class-level {@code @RequestMapping}; its handlers are mapped to {@code /users} and
+ * {@code /users/login}. Both endpoints are publicly accessible and return a freshly issued JWT.
+ */
 @RestController
 @AllArgsConstructor
 public class UsersApi {
@@ -36,6 +42,20 @@ public class UsersApi {
   private JwtService jwtService;
   private UserService userService;
 
+  /**
+   * Handles {@code POST /users} and registers a new user.
+   *
+   * @param registerParam request body wrapped in a {@code "user"} root element holding email,
+   *     username and password; validated with bean validation including duplicate email/username
+   *     checks
+   * @return {@code 201 Created} with a body of the form {@code {"user": UserWithToken}} containing
+   *     the new user's data and a JWT
+   * @throws org.springframework.web.bind.MethodArgumentNotValidException if the request body fails
+   *     bean validation (rendered as {@code 422 Unprocessable Entity} by the global exception
+   *     handler)
+   * @throws javax.validation.ConstraintViolationException if validation of the parameter fails
+   *     again inside the {@code @Validated} {@link UserService} (also rendered as {@code 422})
+   */
   @RequestMapping(path = "/users", method = POST)
   public ResponseEntity createUser(@Valid @RequestBody RegisterParam registerParam) {
     User user = userService.createUser(registerParam);
@@ -44,6 +64,18 @@ public class UsersApi {
         .body(userResponse(new UserWithToken(userData, jwtService.toToken(user))));
   }
 
+  /**
+   * Handles {@code POST /users/login} and authenticates a user by email and password.
+   *
+   * @param loginParam request body wrapped in a {@code "user"} root element holding a well-formed
+   *     email and a non-blank password
+   * @return {@code 200 OK} with a body of the form {@code {"user": UserWithToken}} containing the
+   *     user's data and a JWT
+   * @throws InvalidAuthenticationException if no user has the given email or the password does not
+   *     match (rendered as {@code 422 Unprocessable Entity} with an error message)
+   * @throws org.springframework.web.bind.MethodArgumentNotValidException if the request body fails
+   *     bean validation (rendered as {@code 422 Unprocessable Entity})
+   */
   @RequestMapping(path = "/users/login", method = POST)
   public ResponseEntity userLogin(@Valid @RequestBody LoginParam loginParam) {
     Optional<User> optional = userRepository.findByEmail(loginParam.getEmail());

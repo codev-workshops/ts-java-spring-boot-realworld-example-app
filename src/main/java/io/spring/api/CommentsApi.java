@@ -29,6 +29,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for the comments of a single article.
+ *
+ * <p>Handles requests under the base path {@code /articles/{slug}/comments}: adding a comment,
+ * listing all comments of the article, and deleting a comment by id.
+ */
 @RestController
 @RequestMapping(path = "/articles/{slug}/comments")
 @AllArgsConstructor
@@ -37,6 +43,20 @@ public class CommentsApi {
   private CommentRepository commentRepository;
   private CommentQueryService commentQueryService;
 
+  /**
+   * Handles {@code POST /articles/{slug}/comments} and adds a comment to the article.
+   *
+   * @param slug the URL slug identifying the article being commented on
+   * @param user the currently authenticated user, recorded as the comment's author
+   * @param newCommentParam request body wrapped in a {@code "comment"} root element holding the
+   *     non-blank comment body
+   * @return {@code 201 Created} with a body of the form {@code {"comment": CommentData}}
+   * @throws ResourceNotFoundException if no article with the given slug exists (mapped to {@code
+   *     404 Not Found})
+   * @throws org.springframework.web.bind.MethodArgumentNotValidException if the request body fails
+   *     bean validation (rendered as {@code 422 Unprocessable Entity} by the global exception
+   *     handler)
+   */
   @PostMapping
   public ResponseEntity<?> createComment(
       @PathVariable("slug") String slug,
@@ -50,6 +70,16 @@ public class CommentsApi {
         .body(commentResponse(commentQueryService.findById(comment.getId(), user).get()));
   }
 
+  /**
+   * Handles {@code GET /articles/{slug}/comments} and lists all comments of the article.
+   *
+   * @param slug the URL slug identifying the article
+   * @param user the currently authenticated user, or {@code null} for anonymous requests; when
+   *     present each comment author's profile is enriched with the user's following state
+   * @return {@code 200 OK} with a body of the form {@code {"comments": [CommentData, ...]}}
+   * @throws ResourceNotFoundException if no article with the given slug exists (mapped to {@code
+   *     404 Not Found})
+   */
   @GetMapping
   public ResponseEntity getComments(
       @PathVariable("slug") String slug, @AuthenticationPrincipal User user) {
@@ -64,6 +94,19 @@ public class CommentsApi {
         });
   }
 
+  /**
+   * Handles {@code DELETE /articles/{slug}/comments/{id}} and removes a comment.
+   *
+   * @param slug the URL slug identifying the article the comment belongs to
+   * @param commentId the id of the comment to delete
+   * @param user the currently authenticated user; must be either the comment's author or the
+   *     article's author
+   * @return {@code 204 No Content} with an empty body
+   * @throws ResourceNotFoundException if no article with the given slug exists, or no comment with
+   *     the given id belongs to that article (mapped to {@code 404 Not Found})
+   * @throws NoAuthorizationException if {@link AuthorizationService#canWriteComment} denies the
+   *     user (mapped to {@code 403 Forbidden})
+   */
   @RequestMapping(path = "{id}", method = RequestMethod.DELETE)
   public ResponseEntity deleteComment(
       @PathVariable("slug") String slug,

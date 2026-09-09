@@ -14,6 +14,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
+/**
+ * Write-side application service for user accounts.
+ *
+ * <p>Annotated with {@code @Validated}, so parameters marked {@code @Valid} are checked with bean
+ * validation before the method body runs.
+ */
 @Service
 @Validated
 public class UserService {
@@ -21,6 +27,14 @@ public class UserService {
   private String defaultImage;
   private PasswordEncoder passwordEncoder;
 
+  /**
+   * Creates the service.
+   *
+   * @param userRepository repository used to persist users
+   * @param defaultImage URL of the profile image assigned to newly registered users, injected from
+   *     the {@code image.default} property
+   * @param passwordEncoder encoder used to hash passwords before storing them
+   */
   @Autowired
   public UserService(
       UserRepository userRepository,
@@ -31,6 +45,15 @@ public class UserService {
     this.passwordEncoder = passwordEncoder;
   }
 
+  /**
+   * Registers a new user with an empty bio and the default profile image. The password is hashed
+   * before being stored.
+   *
+   * @param registerParam email, username and plain-text password of the new user; validated with
+   *     bean validation including duplicate email/username checks
+   * @return the newly created and saved user
+   * @throws javax.validation.ConstraintViolationException if {@code registerParam} fails validation
+   */
   public User createUser(@Valid RegisterParam registerParam) {
     User user =
         new User(
@@ -43,6 +66,14 @@ public class UserService {
     return user;
   }
 
+  /**
+   * Updates the email, username, password, bio and image of an existing user and persists it. Blank
+   * values leave the corresponding field unchanged.
+   *
+   * @param command the target user together with the new field values; validated by {@link
+   *     UpdateUserValidator}, which rejects an email or username already used by another user
+   * @throws javax.validation.ConstraintViolationException if {@code command} fails validation
+   */
   public void updateUser(@Valid UpdateUserCommand command) {
     User user = command.getTargetUser();
     UpdateUserParam updateUserParam = command.getParam();
@@ -67,10 +98,29 @@ public class UserService {
   Class[] payload() default {};
 }
 
+/**
+ * Validator backing {@link UpdateUserConstraint}: ensures the email and username requested in an
+ * update are not already taken by a different user.
+ */
 class UpdateUserValidator implements ConstraintValidator<UpdateUserConstraint, UpdateUserCommand> {
 
   @Autowired private UserRepository userRepository;
 
+  /**
+   * Checks the requested email and username for collisions with other users.
+   *
+   * <p>Each value is looked up in the repository. If no user has it, the value is valid ({@code
+   * orElse(true)}). If a user has it, the value is valid only when that user equals the target
+   * user, so a user may keep (or resubmit) their own email/username. When either check fails the
+   * default violation is disabled and a dedicated violation is added per failing field: {@code
+   * "email already exist"} on the {@code email} property node and/or {@code "username already
+   * exist"} on the {@code username} property node.
+   *
+   * @param value the update command holding the target user and the requested new values
+   * @param context the validator context used to register per-field violations
+   * @return {@code true} if neither the email nor the username collides with another user, {@code
+   *     false} otherwise
+   */
   @Override
   public boolean isValid(UpdateUserCommand value, ConstraintValidatorContext context) {
     String inputEmail = value.getParam().getEmail();

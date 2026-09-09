@@ -18,6 +18,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for favoriting and unfavoriting a single article.
+ *
+ * <p>Handles requests under the base path {@code articles/{slug}/favorite}. Both operations are
+ * idempotent and return the article's current state as seen by the calling user.
+ */
 @RestController
 @RequestMapping(path = "articles/{slug}/favorite")
 @AllArgsConstructor
@@ -26,6 +32,17 @@ public class ArticleFavoriteApi {
   private ArticleRepository articleRepository;
   private ArticleQueryService articleQueryService;
 
+  /**
+   * Handles {@code POST /articles/{slug}/favorite} and marks the article as a favorite of the
+   * current user.
+   *
+   * @param slug the URL slug identifying the article
+   * @param user the currently authenticated user who is favoriting the article
+   * @return {@code 200 OK} with a body of the form {@code {"article": ArticleData}} reflecting the
+   *     updated favorite state and count
+   * @throws ResourceNotFoundException if no article with the given slug exists (mapped to {@code
+   *     404 Not Found})
+   */
   @PostMapping
   public ResponseEntity favoriteArticle(
       @PathVariable("slug") String slug, @AuthenticationPrincipal User user) {
@@ -36,6 +53,17 @@ public class ArticleFavoriteApi {
     return responseArticleData(articleQueryService.findBySlug(slug, user).get());
   }
 
+  /**
+   * Handles {@code DELETE /articles/{slug}/favorite} and removes the article from the current
+   * user's favorites. If the article was not favorited by the user this is a no-op.
+   *
+   * @param slug the URL slug identifying the article
+   * @param user the currently authenticated user who is unfavoriting the article
+   * @return {@code 200 OK} with a body of the form {@code {"article": ArticleData}} reflecting the
+   *     updated favorite state and count
+   * @throws ResourceNotFoundException if no article with the given slug exists (mapped to {@code
+   *     404 Not Found})
+   */
   @DeleteMapping
   public ResponseEntity unfavoriteArticle(
       @PathVariable("slug") String slug, @AuthenticationPrincipal User user) {

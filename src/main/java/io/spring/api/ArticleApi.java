@@ -24,6 +24,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller for operations on a single article, addressed by its slug.
+ *
+ * <p>Handles requests under the base path {@code /articles/{slug}}: reading, updating and deleting
+ * one article. Listing and creation of articles are handled by {@link ArticlesApi}.
+ */
 @RestController
 @RequestMapping(path = "/articles/{slug}")
 @AllArgsConstructor
@@ -32,6 +38,16 @@ public class ArticleApi {
   private ArticleRepository articleRepository;
   private ArticleCommandService articleCommandService;
 
+  /**
+   * Handles {@code GET /articles/{slug}} and returns a single article.
+   *
+   * @param slug the URL slug identifying the article
+   * @param user the currently authenticated user, or {@code null} for anonymous requests; when
+   *     present the returned article is enriched with the user's favorite/following state
+   * @return {@code 200 OK} with a body of the form {@code {"article": ArticleData}}
+   * @throws ResourceNotFoundException if no article with the given slug exists (mapped to {@code
+   *     404 Not Found})
+   */
   @GetMapping
   public ResponseEntity<?> article(
       @PathVariable("slug") String slug, @AuthenticationPrincipal User user) {
@@ -41,6 +57,21 @@ public class ArticleApi {
         .orElseThrow(ResourceNotFoundException::new);
   }
 
+  /**
+   * Handles {@code PUT /articles/{slug}} and updates the title, description and/or body of an
+   * existing article.
+   *
+   * @param slug the URL slug identifying the article to update
+   * @param user the currently authenticated user; must be the author of the article
+   * @param updateArticleParam request body wrapped in an {@code "article"} root element holding the
+   *     new title, description and body
+   * @return {@code 200 OK} with a body of the form {@code {"article": ArticleData}} describing the
+   *     updated article (the slug may change if the title changed)
+   * @throws ResourceNotFoundException if no article with the given slug exists (mapped to {@code
+   *     404 Not Found})
+   * @throws NoAuthorizationException if {@link AuthorizationService#canWriteArticle} denies the
+   *     user, i.e. the user is not the article's author (mapped to {@code 403 Forbidden})
+   */
   @PutMapping
   public ResponseEntity<?> updateArticle(
       @PathVariable("slug") String slug,
@@ -62,6 +93,17 @@ public class ArticleApi {
         .orElseThrow(ResourceNotFoundException::new);
   }
 
+  /**
+   * Handles {@code DELETE /articles/{slug}} and removes an article.
+   *
+   * @param slug the URL slug identifying the article to delete
+   * @param user the currently authenticated user; must be the author of the article
+   * @return {@code 204 No Content} with an empty body
+   * @throws ResourceNotFoundException if no article with the given slug exists (mapped to {@code
+   *     404 Not Found})
+   * @throws NoAuthorizationException if {@link AuthorizationService#canWriteArticle} denies the
+   *     user, i.e. the user is not the article's author (mapped to {@code 403 Forbidden})
+   */
   @DeleteMapping
   public ResponseEntity deleteArticle(
       @PathVariable("slug") String slug, @AuthenticationPrincipal User user) {
